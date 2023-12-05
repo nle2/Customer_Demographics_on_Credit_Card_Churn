@@ -1,0 +1,358 @@
+---
+title: "Do Demographic Characteristics Affect Credit Card Churn Rate?"
+author: "Nguyen Y Nhi Le"
+date: "12/02/2023"
+output:
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(knitr)
+library(ggplot2)
+```
+
+## Abstract
+
+In recent years, credit cards are essential for our modern lifestyle. It brings a convenient and safe way for customers to buy almost anything with just one click or swipe both online and offline. The number of companies that provide credit card products keeps increasing and makes market competitiveness high. They provide credit card products with attractive bonuses and reward policies to attract customers from other companies. Customers who leave a credit card company are called credit card churn. It causes credit companies to lose their customers because of the cancellation or non-renewal of their accounts.
+
+Some studies show that customer churn is a costly, significant loss for credit companies. Harvard Business Review has pointed out that a 5% increase in customers can help the companies gain from a 25% to 85% increase in profit. Because customer retention is critical and issue urgent to any credit card company, maintaining this factor is the key to reducing companies' operation costs and increasing profit. In order to do that, credit companies have to understand the factors that affect the credit card churn of their customers. If you predict customer churn early and have a prompt solution to prevent churn, it will keep a high customer retention rate and gain more profits. 
+
+The customer demographics characteristics are essential information for customers. Understanding these factors and how they relate to customer churn will provide credit card companies insights about their customers and lead to effective strategy marketing campaigns to keep the customers with the company. This research uses a bank churners dataset from Kaggle containing multiple customer demographic variables and their churn status. We will perform multiple analyses, including exploratory data analysis and logistic regression, to find the relationship between customer churn and their demographics. The result of this research will help credit card companies focus on customer groups who will be more likely to churn their credit cards.
+
+## Introduction
+
+Different customer demographics include age, gender, dependent count, education level, marital status, and income can have different affect on the churn decision. For example, married credit card customers might churn more than single credit card customers because credit card companies usually offer attractive promotion for new customers. The analysis will focus to find the relationship between customer churn and customer demographics characteristics. As a result, we can understand which group of customers are more likely to churn their credit cards in the future.
+
+## Literature Review
+
+According to Miao & Wang (2022), if credit card customers use their card more frequently, they are less likely to leave the credit company. The authors conducted research on a dataset with more than 10,000 credit card customers and 21 feature columns to build a prediction model on the loss of credit card companies' customers. The three important factors that affect the customers' churn decision are the total transaction amount in the last 12 months, the total revolving balance, and the total transaction count during the previous 12 months.
+
+In addition, Farquad, Ravi & Raju (2009) used a dataset from a bank credit card data that had a growing number of credit card customers and decided to improve their retention rate. Several reasons were mentioned during their research to predict whether their existing customers will be churning out in the future, including technology, customer service quality, geographical location, etc. As a result, the research showed that long-relationship customers are less likely to churn out credit card services in the near future. It also suggested the bank needs to improve their service in purchase journey experience and customer service rather than focusing on customer demographics.
+
+Moreover, de Lima Lemos et al. (2022) conducted research on customer data at a large Brazilian bank. They revealed that bank customers who have a strong relationship with the bank, such as those who also use other bank products and services and engage in bank loans, will be more likely to keep loyalty to the bank.
+
+## Research Question(s)
+
+This research project will address the following question:
+
+-   Do customer demographic characteristics affect their decision to churn out their credit card companies?
+
+## Theory
+
+The null hypothesis and alternative hypothesis are:
+
+H0: Neither customer demographic characteristics is related to credit card churn.
+
+H1: At lease one customer demographic characteristics is related to credit card churn.
+
+By analyzing customer demographic characteristics in related to the credit card customer churn, the alternative hypothesis are expected to be true.
+
+## Data
+
+This research project will use a credit card customer dataset from [Kaggle](https://www.kaggle.com/datasets/sakshigoyal7/credit-card-customers/data). The dataset has more than 10,000 customer records with 23 various features. Each record contains information about credit card customers, including age, gender, dependent count, education, income, card category, months on book, etc.
+
+```{r load_data, echo=FALSE}
+# Data file name
+data_file <- "BankChurners.csv"
+
+# Read csv data into data variable
+churn_data <- read.csv(data_file)
+
+str(churn_data)
+```
+
+We filter only customer demographics columns: Attrition_Flag, Customer Age, Gender, Dependent Count, Education Level, Marital Status, and Income Category.
+
+```{r}
+# Select only demographics variables
+df <- churn_data %>% select(Attrition_Flag, Customer_Age, Gender, Dependent_count, Education_Level, Marital_Status, Income_Category)
+
+head(df)
+```
+
+We continue to check if any missing value in the dataset:
+```{r, echo=FALSE}
+# Calculate missing values in each columns
+sapply(df, function(x) sum(is.na(x)))
+```
+There are no missing values in the dataset.
+
+After filtering out only necessary variables, we recognize that Attrition_Flag, Gender, Education Level, Marital Status, and Income are categorical variables. Therefore, we convert these variables to factors to make it more easier to analyze data.
+
+```{r pre_processing}
+# Change categorical columns to factor
+df[-c(2, 4)] <- lapply(df[-c(2, 4)], as.factor)
+
+# We also rename Customer_Age to Age and Income_Category to Income
+colnames(df)[colnames(df) == "Customer_Age"] = "Age"
+colnames(df)[colnames(df) == "Income_Category"] = "Income"
+
+# Show data structure
+summary(df)
+```
+
+Since gender data is F and M, we need to make it more readable by converting it to Female and Male.
+
+Additionally, the Attrition_Flag variable has only two values: Attrited Customer and Existing Customer. Hence, we transform this to a new column called Churn with Yes if Attrition_Flag=\"Attrited Customer\" and No if Attrition_Flag=\"Existing Customer\". After transformation, we drop the Attrition_Flag column.
+
+```{r}
+# Update gender values
+df <- mutate(df, Gender=as.factor(ifelse(df$Gender == 'F', "Female", "Male")))
+
+# Create new variable Churn to indicate churn status
+df <- mutate(df, Churn=as.factor(ifelse(df$Attrition_Flag == "Attrited Customer", "Yes", "No")))
+
+# Drop Attrition_Flag column
+df$Attrition_Flag <- NULL
+
+summary(df)
+```
+
+Once the data was cleaned and dropped unnecessary columns, we start with descriptive statistics to understand the data. We can see there are 1627 churned customers and 8500 non-churned customers.
+
+```{r, echo=FALSE}
+ylab <- "Number of customers"
+```
+
+For numeric variables Customer Age and Dependent Count, we calculate the summary statistics and use the histogram to display the data spread.
+
+### Customer Age
+
+```{r plot_age, echo=FALSE}
+summary(df$Age)
+
+df %>% ggplot(aes(x = Age)) +
+  geom_histogram(bins = 12, fill = "skyblue") +
+  ggtitle("Distribution of Customer Age") +
+  xlab("Customer Age") +
+  ylab(ylab) +
+  theme_light()
+```
+
+The histogram shows the distribution of credit card customers by age. The customer age range is from 26 to 73, with mean = 46.33 and median = 46. The largest bucket of credit card customers are within the age range of 40 to 50.
+
+### Dependent Count
+
+```{r plot_dependent_count, echo=FALSE}
+summary(df$Dependent_count)
+
+df %>% ggplot(aes(x = Dependent_count)) +
+  geom_histogram(bins = 6, fill = "skyblue") +
+  ggtitle("Distribution of Dependent Count") +
+  xlab("Dependent Count") +
+  ylab(ylab) +
+  theme_light()
+```
+
+The histogram shows the distribution of credit card customers by dependent count. The range of dependent count is from 0 to 5, with mean = 2.346 and median = 2. The largest bucket of credit card customers has 2 or 3 dependents.
+
+For categorical variables, we count the frequency distribution and use bar charts to understand the distribution of different categories in each variable.
+
+### Gender
+
+```{r plot_gender, echo=FALSE}
+df %>%
+  ggplot(aes(x = Gender, fill = Gender)) +
+  geom_bar() +
+  ggtitle("Distribution of Gender") +
+  xlab("Gender") +
+  ylab(ylab) +
+  theme_light()
+```
+
+There are more female customers than male customers. The difference between female and male customers is slight, so it won't significantly impact the data analysis. We can say the gender variable is uniformly distributed.
+
+### Education Level
+
+```{r plot_educaltion_level, echo=FALSE}
+df %>% ggplot(aes(x = Education_Level, fill = Education_Level)) +
+  geom_bar() +
+  geom_text(aes(label = after_stat(count)), stat = 'count', hjust = 1.1) +
+  coord_flip() +
+  ggtitle("Distribution of Education Level") +
+  xlab("Education Level") +
+  ylab(ylab) +
+  theme_light()
+```
+
+The bar chart shows the distribution of credit card customers by education level. The largest number of credit card customers have graduate degrees. This means graduate people are more likely to have credit cards than people of other education levels.
+
+### Marital Status
+
+```{r plot_marital_status, echo=FALSE}
+df %>% ggplot(aes(x = Marital_Status, fill = Marital_Status)) +
+  geom_bar() +
+  geom_text(aes(label = after_stat(count)), stat = 'count', hjust = 1.1) +
+  coord_flip() +
+  ggtitle("Distribution of Marital Status") +
+  xlab("Marital Status") +
+  ylab(ylab) +
+  theme_light()
+```
+
+The bar chart shows the distribution of credit card customers by marital status. The largest number of credit card customers are married. This means married people are more likely to have credit cards than other marital statuses.
+
+### Income
+
+```{r plot-income, echo=FALSE}
+df %>% ggplot(aes(x = Income, fill = Income)) +
+  geom_bar() +
+  geom_text(aes(label = after_stat(count)), stat = 'count', hjust = 1.1) +
+  coord_flip() +
+  ggtitle("Distribution of Income") +
+  xlab("Income") +
+  ylab(ylab) +
+  theme_light()
+```
+
+The bar chart shows the distribution of credit card customers by income. The largest number of credit card customers have incomes less than $40K. We can easily understand this because low-income customers might need to use credit cards for their daily expenses or short-term borrowing from credit card companies.
+
+## Methodology
+
+After data was cleaned in the pre-processing steps, it will be used to perform exploratory data analysis to identify the relationship between credit card churn rate and demographics variables.
+
+### Exploratory Data Analysis
+
+The numeric variables are plotted on histogram plots to show the churn rate.
+
+```{r, echo=FALSE}
+df %>% 
+  ggplot(aes(x = Age, fill = Churn)) +
+  geom_histogram(bins = 12) +
+  ggtitle("Churn rate by Customer Age") +
+  xlab("Customer Age") +
+  ylab(ylab) +
+  theme_light()
+```
+
+Customers within the age range of 45-55 are more likely to have credit cards and become credit card churners.
+
+```{r, echo=FALSE}
+df %>% 
+  ggplot(aes(x = Dependent_count, fill = Churn)) +
+  geom_histogram(bins = 6) +
+  ggtitle("Churn rate by Dependent Count") +
+  xlab("Dependent Count") +
+  ylab(ylab) +
+  theme_light()
+```
+
+Although the churn rate shows no difference according to dependent count, customers with 2 or 3 dependents contribute to the highest churn rate.
+
+Categorical variables are plotted on bar plots to compare the churn rate and find the largest group of customers more likely to become credit card churners.
+```{r, echo=FALSE}
+df %>% ggplot(aes(x = Churn, group = Gender, fill = Gender)) + 
+  geom_bar(stat = "count", position = "dodge") +
+  ggtitle("Churn rate by Gender") +
+  xlab("Churn") +
+  ylab(ylab) +
+  theme_light()
+```
+
+The churn rate for female customers is slightly higher than for male customers. This can be a factor for credit card companies to focus on their advertising campaigns to increase customer retention.
+
+```{r, echo=FALSE}
+df %>% ggplot(aes(x = Churn,
+                  y = prop.table(after_stat(count)),
+                  group = Education_Level,
+                  fill = Education_Level,
+                  label = scales::percent(prop.table(after_stat(count))))) + 
+  geom_bar(position = "dodge") +
+  scale_y_continuous(labels=scales::percent) +
+  ggtitle("Churn rate by Education Level") +
+  xlab("Churn") +
+  ylab("Percentage") +
+  theme_light()
+```
+
+The largest proportion of credit card customers have graduate degrees, and this group of customers also has the highest churn rate.
+
+```{r, echo=FALSE}
+df %>% ggplot(aes(x = Churn,
+                  y = prop.table(after_stat(count)),
+                  group = Marital_Status,
+                  fill = Marital_Status,
+                  label = scales::percent(prop.table(after_stat(count))))) + 
+  geom_bar(position = "dodge") +
+  scale_y_continuous(labels=scales::percent) +
+  ggtitle("Churn rate by Marital Status") +
+  xlab("Churn") +
+  ylab("Percentage") +
+  theme_light()
+```
+
+We can see that most credit card customers are either single or married. The highest churn rate falls among married customers.
+
+```{r, echo=FALSE}
+df %>% ggplot(aes(x = Churn,
+                  y = prop.table(after_stat(count)),
+                  group = Income,
+                  fill = Income,
+                  label = scales::percent(prop.table(after_stat(count))))) + 
+  geom_bar(position = "dodge") +
+  scale_y_continuous(labels=scales::percent) +
+  ggtitle("Churn rate by Income") +
+  xlab("Churn") +
+  ylab("Percentage") +
+  theme_light()
+```
+
+Credit card customers with income less than \$40K are more likely to have credit cards and then become churners.
+
+### Logistic Regression
+
+Because the dependent variable Attrition is binomial (YES/NO), multiple logistic regression models will be built to test the relationship between customer churn and demographic variables.
+The first model is built with all independent variables:
+
+```{r}
+churn.glm.all <- glm(Churn~., data = df, family = "binomial")
+summary(churn.glm.all)
+```
+
+We can see the Marital_Status variable is insignificant (p-value > 0.05). So we build the second model after dropping the Marital_Status.
+
+```{r}
+churn.glm.two <- glm(Churn~Age
+                         + Gender
+                         + Dependent_count
+                         + Education_Level
+                         + Income, data = df, family = "binomial")
+summary(churn.glm.two)
+```
+
+The Age and Dependent_count variable have p-values are slightly higher than 0.05, we can not say that these variables are insignificant. However, let's build third model without Marital_Status, Age and Dependent_count.
+
+```{r}
+churn.glm.three <- glm(Churn~Gender
+                         + Education_Level
+                         + Income, data = df, family = "binomial")
+summary(churn.glm.three)
+```
+
+## Result
+
+Three logistic regression models were built and they show the strong, positive relationship between customer demographics and churn rate. The 3rd model is best model shows that Gender, Education Level, and Income are statistically significant impact in customer churn with p-value < 0.05. Male credit card customers are negative associated with credit card churn and this is significant with p-value < 0.01. Customers in any education level have positive associate with customer churn. Only doctorate degree is significant with p-value=0.007150 < 0.01, while other education levels are not significant because p-value > 0.05. Customers within any income category have negative associated with customer churn. This is not significant for customers within income range \$80K - $120K (p-value > 0.05), while other income ranges are significant.
+
+Therefore, the null hypothesis "Neither customer demographic characteristics is related to credit card churn" is rejected we can confirm the alternative hypothesis "At lease one customer demographic characteristics is related to credit card churn".
+
+## Implication
+
+This research shows the relationship between credit card churn and various customer demographic characteristics. There are multiple other factors related to customer demographic characteristics that might affect credit card churn. These factors include card category, credit limit, total revolving balance, etc.
+
+Further researchers should expand their interest to these factors. They can group customer demographic characteristics into multiple groups and analyze these groups and other factors. Their interest findouts can be helpful for credit card companies to have good marketing campaigns to increase customer retention rates.
+
+## Conclusion
+
+The research aims to answer the question: "Do customer demographic characteristics affect their decision to churn out their credit card companies?". This research uses a dataset of credit card churners. The exploratory data analysis was conducted to show the relationship between each customer demographics variable and customer churn. Multiple logistic regression models were built to identify the relationship between independent variables and binary dependent variable Churn. The best logistic regression model showed that gender, education level, and income are the most significant credit card churn decision factors.
+
+## References
+
+Heskett, J. L. (2016). “Putting the Service-Profit chain to work”. Retrieved from: https://hbr.org/2008/07/putting-the-service-profit-chain-to-work
+
+Miao, X., & Wang, H. (2022). “Customer Churn Prediction on Credit Card Services using Random Forest Method”. Advances in Economics, Business and Management Research.
+
+Farquad, M., Ravi, V., & Bapi, R. S. (2009). “Data Mining Using Rules Extracted from SVM: An Application to Churn Prediction in Bank Credit Cards”. In Lecture Notes in Computer Science.
+
+De Lima Lemos, R. A., Silva, T. C., & Tabak, B. M. (2022). “Propension to customer churn in a financial institution: a machine learning approach”. Neural Computing and Applications, 34(14), 11751–11768.

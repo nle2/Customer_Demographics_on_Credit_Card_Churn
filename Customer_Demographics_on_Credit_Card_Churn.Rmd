@@ -335,6 +335,12 @@ summary(churn.glm.three)
 
 Three logistic regression models were built and they show the strong, positive relationship between customer demographics and churn rate. The 3rd model is best model shows that Gender, Education Level, and Income are statistically significant impact in customer churn with p-value < 0.05. Male credit card customers are negative associated with credit card churn and this is significant with p-value < 0.01. Customers in any education level have positive associate with customer churn. Only doctorate degree is significant with p-value=0.007150 < 0.01, while other education levels are not significant because p-value > 0.05. Customers within any income category have negative associated with customer churn. This is not significant for customers within income range \$80K - $120K (p-value > 0.05), while other income ranges are significant.
 
+```{r, echo=FALSE}
+library(coefplot)
+
+coefplot(churn.glm.three)
+```
+
 Therefore, the null hypothesis "Neither customer demographic characteristics is related to credit card churn" is rejected we can confirm the alternative hypothesis "At lease one customer demographic characteristics is related to credit card churn".
 
 ## Implication
